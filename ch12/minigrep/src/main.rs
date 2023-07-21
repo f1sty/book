@@ -2,20 +2,40 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    let (regexp, file_path) = parse_config(&args);
+struct Config<'a> {
+    search_term: &'a str,
+    file_path: &'a Path,
+}
 
-    println!("searching for '{regexp}' at file {file_path:?}\n");
+impl<'a> Config<'a> {
+    pub fn build(args: &'a [String]) -> Result<Self, &'static str> {
+        if args.len() < 3 {
+            return Err("not enough arguments");
+        }
+        Ok(Self {
+            search_term: &args[1],
+            file_path: Path::new(&args[2]),
+        })
+    }
+}
 
-    let contents = fs::read_to_string(file_path).expect("Couldn't open file {path:?}");
+fn run(config: Config) {
+    println!(
+        "searching for '{}' at file {:?}\n",
+        config.search_term, config.file_path
+    );
+
+    let contents = fs::read_to_string(config.file_path).expect("Couldn't open file");
 
     print!("file text:\n{contents}");
 }
 
-fn parse_config(args: &[String]) -> (&str, &Path) {
-    let regex = &args[1];
-    let file_path = Path::new(&args[2]);
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    let config = Config::build(&args).unwrap_or_else(|err| {
+        println!("Problem parsing arguments: {err}");
+        std::process::exit(1);
+    });
 
-    (regex, file_path)
+    run(config);
 }
